@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>File Service</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 text-gray-900 font-sans">
+    <div class="container mx-auto p-6">
+      <h1 class="text-3xl font-bold mb-6">File Service</h1>
+
+      <!-- Upload Section -->
+      <h2 class="text-2xl font-semibold mb-4">Upload a file</h2>
+      <form id="uploadForm" enctype="multipart/form-data" class="mb-6">
+        <input
+          type="file"
+          id="fileInput"
+          name="file"
+          required
+          class="border border-gray-300 p-2 rounded-md"
+        />
+        <button
+          type="submit"
+          class="bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 transition mt-4"
+        >
+          Upload
+        </button>
+      </form>
+
+      <!-- File List Section -->
+      <h2 class="text-2xl font-semibold mb-4">Available Files</h2>
+      <ul id="fileList" class="space-y-2"></ul>
+    </div>
+
+    <script>
+      // Function to handle file upload
+      document
+        .getElementById("uploadForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const formData = new FormData();
+          const file = document.getElementById("fileInput").files[0];
+          formData.append("file", file);
+
+          try {
+            const response = await fetch("http://localhost:8080/upload", {
+              method: "POST",
+              body: formData,
+            });
+            const data = await response.json();
+            if (data.message) {
+              alert("File uploaded successfully: " + data.filename);
+              listFiles(); // Refresh the file list after upload
+            } else {
+              alert("Error uploading file: " + data.error);
+            }
+          } catch (error) {
+            alert("Error uploading file: " + error.message);
+          }
+        });
+
+      // Function to fetch and display the list of files
+      async function listFiles() {
+        try {
+          const response = await fetch("http://localhost:8080/files");
+          const data = await response.json();
+          const fileList = document.getElementById("fileList");
+          fileList.innerHTML = ""; // Clear previous list
+
+          if (data.files) {
+            data.files.forEach((file) => {
+              const li = document.createElement("li");
+              li.classList.add("flex", "items-center", "space-x-2");
+
+              li.innerHTML = `
+                <span class="flex-1">${file}</span>
+                <button onclick="downloadFile('${file}')" class="bg-blue-500 text-white py-1 px-3 rounded-md hover:bg-blue-600 transition">
+                  Download
+                </button>
+                <button onclick="deleteFile('${file}')" class="bg-red-500 text-white py-1 px-3 rounded-md hover:bg-red-600 transition">
+                  Delete
+                </button>
+              `;
+
+              fileList.appendChild(li);
+            });
+          } else {
+            fileList.innerHTML = "<li>No files available</li>";
+          }
+        } catch (error) {
+          alert("Error fetching file list: " + error.message);
+        }
+      }
+
+      // Function to download a file
+      function downloadFile(filename) {
+        const link = document.createElement("a");
+        link.href = `http://localhost:8080/download/${filename}`;
+        link.download = filename; // This forces the file to download
+        document.body.appendChild(link); // Append the link to the body
+        link.click(); // Simulate a click on the link
+        document.body.removeChild(link); // Remove the link after download
+      }
+
+      // Function to delete a file
+      async function deleteFile(filename) {
+        if (confirm(`Are you sure you want to delete ${filename}?`)) {
+          try {
+            const response = await fetch(
+              `http://localhost:8080/delete/${filename}`,
+              {
+                method: "DELETE",
+              }
+            );
+            const data = await response.json();
+            if (data.message) {
+              alert("File deleted successfully");
+              listFiles(); // Refresh the file list after deletion
+            } else {
+              alert("Error deleting file: " + data.error);
+            }
+          } catch (error) {
+            alert("Error deleting file: " + error.message);
+          }
+        }
+      }
+
+      // Call listFiles on page load to display available files
+      listFiles();
+    </script>
+  </body>
+</html>
